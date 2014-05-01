@@ -62,11 +62,27 @@ threadpool_t* pool_create(int workers, int queue_size) {
 
 void pool_add_task(threadpool_t *pool, void (*function)(void *), void* arg) {
 
-	task_t *task = malloc(sizeof(task));
-	task->function = function;
-	task->arg = arg;
+	// set up task
+	task_t task;
+	task.function = function;
+	task.arg = arg;
 
-	pthread_mutex_lock(&(pool->lock)); //
+	pthread_mutex_lock(&(pool->lock)); // enter critical section
+
+	if (pool->queue_count > pool->queue_size) { // TODO: Handle error bettter
+		perror("Queue is full, try again!\n");
+		return
+	}
+	memcpy(pool->task_queue[pool->tail], task); // add task to end of queue
+
+	pool->tail = (pool->tail++) % pool->queue_size; // advance end of queue
+	pool->queue_count++; // job added to queue
+
+	// notify waiting workers of new job
+	pthread_cond_signal(&(pool->notify));
+
+	pthread_mutex_unlock(&(pool->lock)); // end critical section
+
 }
 
 // pool worker function
