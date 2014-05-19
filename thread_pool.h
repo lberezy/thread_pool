@@ -4,8 +4,8 @@
 #include <pthread.h>
 
 typedef struct task {
-	void (*function)(void *);
-    void *arg;
+	void (*function)(void *); //pointer to the function the task executes
+    void *arg; 
 	struct task *next;
 } task_t;
 
@@ -20,5 +20,11 @@ typedef struct pool{
   int head;
   int tail;
 } threadpool_t;
+
+void* pool_worker(void* parent_pool);
+
+threadpool_t* pool_create(int number_of_workers, int queue_size);
+
+void pool_add_task(threadpool_t *pool, void (*function)(void *), void* arg);
 
 #endif

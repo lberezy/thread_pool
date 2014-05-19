@@ -1,17 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
 
 #include "thread_pool.h"
 
-threadpool_t* pool_create(int workers, int queue_size) {
+threadpool_t* pool_create(int number_of_workers, int queue_size) {
 	// allocate new pool
 	threadpool_t *pool = (threadpool_t*)malloc(sizeof(threadpool_t)); 
 
 	pool->queue_size = queue_size;
 	pool->queue_count = 0;
-	pool->thread_count = 0;
+	pool->thread_count = number_of_workers;
 	pool->head = 0;
 	pool->tail = pool->head;
 
@@ -24,16 +23,14 @@ threadpool_t* pool_create(int workers, int queue_size) {
 	
 	pthread_mutex_init(&(pool->lock), NULL); // use implementation default attr.
 	pthread_cond_init(&(pool->notify), NULL);
-
-	//NOTE: Do error checking on above.
-	//
+	
+	// TODO - error checking on above.
 	
 	for (int i = 0; i < (pool->thread_count); i++) {
-		if (pthread_create(&(pool->threads[i]), NULL, &pool_worker, (void*)pool)) {
+		if ( pthread_create(&(pool->threads[i]), NULL, &pool_worker, (void*)pool) ) {
 			perror("Error creating thread, exiting.\n");
 			exit(EXIT_FAILURE);
 			}
-		pool->thread_count++;
 	}
 
 	return pool;
@@ -52,7 +49,7 @@ void pool_add_task(threadpool_t *pool, void (*function)(void *), void* arg) {
 		perror("Queue is full, try again!\n");
 		return;
 	}
-	memcpy(pool->task_queue[pool->tail], task); // add task to end of queue
+	pool->task_queue[pool->tail] = task; // add task to end of queue
 
 	pool->tail = (pool->tail++) % pool->queue_size; // advance end of queue
 	pool->queue_count++; // job added to queue
@@ -71,14 +68,14 @@ void* pool_worker(void* input_parent_pool) {
 	task_t task;
 
 	while(1) {
-		//take lock. thread is blocked if not possible to take, that's fine.
+		// take lock. thread is blocked if not possible to take, that's fine.
 		// need the lock in order to wait on condition. don't want condition
 		// being changed.
 		pthread_mutex_lock(&(parent_pool->lock));
 		/* begin critical section */
 
 		// wait for notification of new work when pool is empty
-		while(pool->queue_count == 0) {
+		while(parent_pool->queue_count == 0) {
 			// thread is blocked while waiting for a notification of work.
 			// does this with an atomic release of lock so other workers can
 			// also be waiting. lock is retained upon notification
@@ -98,7 +95,7 @@ void* pool_worker(void* input_parent_pool) {
         pthread_mutex_unlock(&(parent_pool->lock));
 
         // execute task
-        *(task.function)(task.arg);
+        (*task.function)(task.arg);
 
 	}
 	return NULL;
