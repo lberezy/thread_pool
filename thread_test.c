@@ -15,6 +15,7 @@ int main(int argc, char const *argv[])
 		int* arg = (int*)malloc(sizeof(int));
 		*arg = i+1;
 		pool_add_task(pool,printnum,(void*)arg);
+		free(arg);
 	}
 	return 0;
 }
