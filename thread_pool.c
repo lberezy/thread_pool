@@ -1,34 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <pthread.h>
 
-
-typedef struct task {
-	void (*function)(void *);
-    void *arg;
-	struct task *next;
-} task_t;
-
-
-typedef struct pool{
-  pthread_mutex_t lock;
-  pthread_cond_t notify;
-  pthread_t *threads;
-  task_t *task_queue; // task queue
-  int queue_size;
-  int queue_count;
-  int thread_count;
-  int head;
-  int tail;
-} threadpool_t;
-
-
-void* pool_worker(void* parent_pool);
-threadpool_t* pool_create(int workers, int queue_size);
+#include "thread_pool.h"
 
 threadpool_t* pool_create(int workers, int queue_size) {
-
-	threadpool_t *pool = malloc(sizeof(threadpool_t)); // allocate new pool
+	// allocate new pool
+	threadpool_t *pool = (threadpool_t*)malloc(sizeof(threadpool_t)); 
 
 	pool->queue_size = queue_size;
 	pool->queue_count = 0;
@@ -37,9 +16,9 @@ threadpool_t* pool_create(int workers, int queue_size) {
 	pool->tail = pool->head;
 
 	// allocate thread array
-	pool->threads = malloc(sizeof(pthread_t) * pool->thread_count);
+	pool->threads = (pthread_t*)malloc(sizeof(pthread_t) * pool->thread_count);
 	//allocate task queue
-	pool->tasks = malloc(sizeof(task_t) * pool->queue_size);
+	pool->task_queue = (task_t*)malloc(sizeof(task_t) * pool->queue_size);
 
 	// initialise mutexes
 	
@@ -71,7 +50,7 @@ void pool_add_task(threadpool_t *pool, void (*function)(void *), void* arg) {
 
 	if (pool->queue_count > pool->queue_size) { // TODO: Handle error bettter
 		perror("Queue is full, try again!\n");
-		return
+		return;
 	}
 	memcpy(pool->task_queue[pool->tail], task); // add task to end of queue
 
@@ -86,9 +65,9 @@ void pool_add_task(threadpool_t *pool, void (*function)(void *), void* arg) {
 }
 
 // pool worker function
-void* pool_worker(void* parent_pool) {
+void* pool_worker(void* input_parent_pool) {
 
-	threadpool_t *parent_pool = parent_pool;
+	threadpool_t *parent_pool = (threadpool_t*)input_parent_pool;
 	task_t task;
 
 	while(1) {
@@ -108,12 +87,12 @@ void* pool_worker(void* parent_pool) {
 		}
 
 		// otherwise grab the next task in the queue and run it
-		task.function = parent_pool->queue[parent_pool->head].function;
-        task.arg = parent_pool->queue[parent_pool->head].arg;
+		task.function = parent_pool->task_queue[parent_pool->head].function;
+        task.arg = parent_pool->task_queue[parent_pool->head].arg;
 
         // increment head of queue
         parent_pool->head = (parent_pool->head++) % parent_pool->queue_size;
-        parentpool->count--; // removed a task from queue
+        parent_pool->queue_count--; // removed a task from queue
 
         /* end critical section */
         pthread_mutex_unlock(&(parent_pool->lock));
