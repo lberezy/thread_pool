@@ -41,23 +41,31 @@ void pool_add_task(threadpool_t *pool, void (*function)(void *), void* arg) {
 	// set up task
 	task_t task;
 	task.function = function;
-	task.arg = arg;
+	task.arg = arg; //
 
 	pthread_mutex_lock(&(pool->lock)); // enter critical section
-	//printf("--->Adding task to pool: function & %p, arg & %p\n", function, arg);
+
+	#ifdef DEBUG
+	printf("--->Adding task to pool: function & %p, arg & %p\n", function, arg);
+	#endif
+	
 	if (pool->queue_count > pool->queue_size) { // TODO: Handle error bettter
-		perror("Queue is full, try again!\n");
+		printf("Queue is full, try again!\n");
+		fflush(stdout);
+		pthread_mutex_unlock(&(pool->lock)); // end critical section
 		return;
 	}
+
 	pool->task_queue[pool->tail] = task; // add task to end of queue
 	pool->tail = (pool->tail+1) % pool->queue_size; // advance end of queue
 	pool->queue_count++; // job added to queue
-
-	//printf("--->Queue size %d, queue tail @ %d\n",pool->queue_size,pool->tail );
-
+	
+	#ifdef DEBUG
+	printf("--->Queue at %d / %d, queue tail @ %d\n",pool->queue_count,pool->queue_size,pool->tail);
+	#endif
+	
 	// notify waiting workers of new job
 	pthread_cond_signal(&(pool->notify));
-
 	pthread_mutex_unlock(&(pool->lock)); // end critical section
 
 }
@@ -97,6 +105,8 @@ void* pool_worker(void* input_parent_pool) {
 
         // execute task
         (*task.function)(task.arg);
+
+        //TODO - need to free argument pointer
 
 	}
 	return NULL;

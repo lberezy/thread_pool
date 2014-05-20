@@ -2,8 +2,20 @@ CC = gcc
 CFLAGS = -Wall -std=c99
 LDFLAGS = -lpthread
 
-thread_test:
-	$(CC) $(CFLAGS) $(LDFLAGS) thread_test.c thread_pool.c -o thread_test
+TARGET = thread_test
+
+DEPS = thread_pool.c
+SRCS = $(DEPS) thread_test.c
+OBJS = $(SRCS:.c=.o)
+
+all: $(TARGET)
+	@echo "thread_test has been compiled :-)"
+	
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $(TARGET) $(OBJS)
+
+.c.o:
+	$(CC) $(CFLAGS) -c $<  -o $@
 
 clean: 
-	rm -f *.o thread_test
+	rm *.o $(TARGET)
