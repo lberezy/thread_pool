@@ -10,7 +10,10 @@ OBJS = $(SRCS:.c=.o)
 
 all: $(TARGET)
 	@echo "thread_test has been compiled :-)"
-	
+
+debug: CFLAGS += -DDEBUG
+debug: $(TARGET)
+
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $(TARGET) $(OBJS)
 

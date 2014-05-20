@@ -30,7 +30,7 @@ threadpool_t* pool_create(int number_of_workers, int queue_size) {
 		if ( pthread_create(&(pool->threads[i]), NULL, &pool_worker, (void*)pool) ) {
 			perror("Error creating thread, exiting.\n");
 			exit(EXIT_FAILURE);
-			}
+		}
 	}
 
 	return pool;
@@ -46,7 +46,7 @@ void pool_add_task(threadpool_t *pool, void (*function)(void *), void* arg) {
 	pthread_mutex_lock(&(pool->lock)); // enter critical section
 
 	#ifdef DEBUG
-	printf("--->Adding task to pool: function & %p, arg & %p\n", function, arg);
+	//printf("--->Adding task to pool: function & %p, arg & %p\n", function, arg);
 	#endif
 	
 	if (pool->queue_count > pool->queue_size) { // TODO: Handle error bettter

@@ -4,7 +4,7 @@
 
 #define THREAD_COUNT 3
 #define QUEUE_SIZE 100
-#define TASK_COUNT 200
+#define TASK_COUNT 100
 
 void printnum(void *num) {
 	int *number = (int*)num;
@@ -22,6 +22,11 @@ int main(int argc, char const *argv[])
 		//printf("Loading number : %d & addr %p\n", *arg, arg);
 		pool_add_task(pool,printnum,(void*)arg);
 		//free(arg);
+	}
+	while (1) {
+		if (pool->queue_count == 0) {
+			break;
+		}
 	}
 	return 0;
 }
