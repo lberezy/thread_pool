@@ -4,7 +4,7 @@
 
 void printnum(void *num) {
 	int *number = (int*)num;
-	printf("Number: %d\n", *number);
+	printf("Printing number: %d & addr %p\n", *number, number);
 }
 
 int main(int argc, char const *argv[])
@@ -14,8 +14,9 @@ int main(int argc, char const *argv[])
 	for (int i=0;i<100;i++) {
 		int* arg = (int*)malloc(sizeof(int));
 		*arg = i+1;
+		//printf("Loading number : %d & addr %p\n", *arg, arg);
 		pool_add_task(pool,printnum,(void*)arg);
-		free(arg);
+		//free(arg);
 	}
 	return 0;
 }
