@@ -44,15 +44,16 @@ void pool_add_task(threadpool_t *pool, void (*function)(void *), void* arg) {
 	task.arg = arg;
 
 	pthread_mutex_lock(&(pool->lock)); // enter critical section
-
+	//printf("--->Adding task to pool: function & %p, arg & %p\n", function, arg);
 	if (pool->queue_count > pool->queue_size) { // TODO: Handle error bettter
 		perror("Queue is full, try again!\n");
 		return;
 	}
 	pool->task_queue[pool->tail] = task; // add task to end of queue
-
-	pool->tail = (pool->tail++) % pool->queue_size; // advance end of queue
+	pool->tail = (pool->tail+1) % pool->queue_size; // advance end of queue
 	pool->queue_count++; // job added to queue
+
+	//printf("--->Queue size %d, queue tail @ %d\n",pool->queue_size,pool->tail );
 
 	// notify waiting workers of new job
 	pthread_cond_signal(&(pool->notify));
@@ -88,7 +89,7 @@ void* pool_worker(void* input_parent_pool) {
         task.arg = parent_pool->task_queue[parent_pool->head].arg;
 
         // increment head of queue
-        parent_pool->head = (parent_pool->head++) % parent_pool->queue_size;
+        parent_pool->head = (parent_pool->head+1) % parent_pool->queue_size;
         parent_pool->queue_count--; // removed a task from queue
 
         /* end critical section */
