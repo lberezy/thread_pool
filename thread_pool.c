@@ -5,9 +5,12 @@
 #include "thread_pool.h"
 
 threadpool_t* pool_create(int number_of_workers, int queue_size) {
+
+	int ret_val;
 	// allocate new pool
 	threadpool_t *pool = (threadpool_t*)malloc(sizeof(threadpool_t)); 
 
+	// Pool settings
 	pool->queue_size = queue_size;
 	pool->queue_count = 0;
 	pool->thread_count = number_of_workers;
@@ -20,23 +23,35 @@ threadpool_t* pool_create(int number_of_workers, int queue_size) {
 	pool->task_queue = (task_t*)malloc(sizeof(task_t) * pool->queue_size);
 
 	// initialise mutexes
-	
-	pthread_mutex_init(&(pool->lock), NULL); // use implementation default attr.
-	pthread_cond_init(&(pool->notify), NULL);
-	
-	// TODO - error checking on above.
-	
+	if ((ret_val = pthread_mutex_init(&(pool->lock), NULL)) != 0) {
+		fprintf(stderr, "Could not initialise mutex: %s\n", strerror(ret_val));
+		goto error;
+	}
+	if ((ret_val = pthread_cond_init(&(pool->notify), NULL)) != 0) {
+		fprintf(stderr, "Could not initialise conditional mutex: %s\n", strerror(ret_val));
+		goto error;
+	}
+	// instantiate worker threads
 	for (int i = 0; i < (pool->thread_count); i++) {
-		if ( pthread_create(&(pool->threads[i]), NULL, &pool_worker, (void*)pool) ) {
+		if ((ret_val = pthread_create(&(pool->threads[i]), NULL, &pool_worker, (void*)pool)) != 0) {
+			fprintf(stderr, "Could not allocate worker %d: %s\n", i, strerror(ret_val));
+			goto error;
 			perror("Error creating thread, exiting.\n");
-			exit(EXIT_FAILURE);
 		}
 	}
 
 	return pool;
+
+	error:
+		fprintf(stderr, "Failed to create threadpool\n");
+		fflush(stderr);
+		free(pool->threads);
+		free(pool->task_queue);
+		free(pool);
+		return NULL;
 }
 
-void pool_add_task(threadpool_t *pool, void (*function)(void *), void* arg) {
+int pool_add_task(threadpool_t *pool, void (*function)(void *), void* arg) {
 
 	// set up task
 	task_t task;
@@ -45,32 +60,31 @@ void pool_add_task(threadpool_t *pool, void (*function)(void *), void* arg) {
 
 	pthread_mutex_lock(&(pool->lock)); // enter critical section
 
-	#ifdef DEBUG
+#ifdef DEBUG
 	//printf("--->Adding task to pool: function & %p, arg & %p\n", function, arg);
-	#endif
-	
-	if (pool->queue_count > pool->queue_size) { // TODO: Handle error bettter
-		printf("Queue is full, try again!\n");
-		fflush(stdout);
-		pthread_mutex_unlock(&(pool->lock)); // end critical section
-		return;
+#endif
+
+	if (pool->queue_count > pool->queue_size) {
+		fprintf(stderr, "Could not add task. Queue full.\n");
+		fflush(stderr);
+		pthread_mutex_unlock(&(pool->lock)); // release lock
+		return -1;
 	}
 
 	pool->task_queue[pool->tail] = task; // add task to end of queue
-	pool->tail = (pool->tail+1) % pool->queue_size; // advance end of queue
+	pool->tail = (pool->tail + 1) % pool->queue_size; // advance end of queue
 	pool->queue_count++; // job added to queue
-	
-	#ifdef DEBUG
+
+#ifdef DEBUG
 	printf("--->Queue at %d / %d, queue tail @ %d\n",pool->queue_count,pool->queue_size,pool->tail);
-	#endif
-	
-	// notify waiting workers of new job
-	pthread_cond_signal(&(pool->notify));
+#endif
+
+	pthread_cond_signal(&(pool->notify)); // notify waiting workers of new job
 	pthread_mutex_unlock(&(pool->lock)); // end critical section
 
+	return 0;
 }
 
-// pool worker function
 void* pool_worker(void* input_parent_pool) {
 
 	threadpool_t *parent_pool = (threadpool_t*)input_parent_pool;
@@ -92,7 +106,7 @@ void* pool_worker(void* input_parent_pool) {
 			pthread_cond_wait(&(parent_pool->notify), &(parent_pool->lock));
 		}
 
-		// otherwise grab the next task in the queue and run it
+		// grab the next task in the queue and run it
 		task.function = parent_pool->task_queue[parent_pool->head].function;
         task.arg = parent_pool->task_queue[parent_pool->head].arg;
 
@@ -106,7 +120,7 @@ void* pool_worker(void* input_parent_pool) {
         // execute task
         (*task.function)(task.arg);
 
-        //TODO - need to free argument pointer
+        //TODO - need to free argument pointer...maybe
 
 	}
 	return NULL;
