@@ -2,6 +2,10 @@
 #include <stdlib.h>
 #include "thread_pool.h"
 
+#define THREAD_COUNT 3
+#define QUEUE_SIZE 100
+#define TASK_COUNT 100
+
 void printnum(void *num) {
 	int *number = (int*)num;
 	printf("Printing number: %d & addr %p\n", *number, number);
@@ -9,14 +13,20 @@ void printnum(void *num) {
 
 int main(int argc, char const *argv[])
 {
-	//create pool of 10 workers with 100 queue space
-	threadpool_t *pool = pool_create(10,100);
-	for (int i=0;i<100;i++) {
+	//create pool
+	threadpool_t *pool = pool_create(THREAD_COUNT,QUEUE_SIZE);
+
+	for (int i=0;i<TASK_COUNT;i++) {
 		int* arg = (int*)malloc(sizeof(int));
 		*arg = i+1;
 		//printf("Loading number : %d & addr %p\n", *arg, arg);
 		pool_add_task(pool,printnum,(void*)arg);
 		//free(arg);
+	}
+	while (1) {
+		if (pool->queue_count == 0) {
+			break;
+		}
 	}
 	return 0;
 }
